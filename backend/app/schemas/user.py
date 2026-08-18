@@ -9,3 +9,8 @@ class UserResponse(BaseModel):
     model_config = {
         "from_attributes": True
     }
+
+
+class UserCreate(BaseModel):
+    name: str
+    email: str
