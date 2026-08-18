@@ -1,10 +1,9 @@
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, HTTPException
 from sqlalchemy.orm import Session
 
 from app.db.dependencies import get_db
 from app.models.user import User
-from app.schemas.user import UserCreate, UserResponse
-
+from app.schemas.user import UserCreate, UserResponse, UserUpdate
 
 app = FastAPI(title="Reunite API")
 
@@ -12,13 +11,9 @@ app = FastAPI(title="Reunite API")
 @app.get("/")
 def root():
     return {"message": "Hello World"}
-
-
 @app.get("/users", response_model=list[UserResponse])
 def get_users(db: Session = Depends(get_db)):
     return db.query(User).all()
-
-
 @app.post("/users", response_model=UserResponse)
 def create_user(user: UserCreate, db: Session = Depends(get_db)):
     new_user = User(
@@ -31,3 +26,44 @@ def create_user(user: UserCreate, db: Session = Depends(get_db)):
     db.refresh(new_user)
 
     return new_user
+
+
+@app.get("/users/{user_id}", response_model=UserResponse)
+def get_user(user_id: int, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.id == user_id).first()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    return user
+
+@app.put("/users/{user_id}", response_model=UserResponse)
+def update_user(
+    user_id: int,
+    user_data: UserUpdate,
+    db: Session = Depends(get_db),
+):
+    user = db.query(User).filter(User.id == user_id).first()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    user.name = user_data.name
+    user.email = user_data.email
+
+    db.commit()
+    db.refresh(user)
+
+    return user
+
+@app.delete("/users/{user_id}")
+def delete_user(user_id: int, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.id == user_id).first()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    db.delete(user)
+    db.commit()
+
+    return {"message": "User deleted successfully"}
